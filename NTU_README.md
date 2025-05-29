@@ -47,12 +47,15 @@ download sam4mllm_plus checkpoints and metadata [https://drive.google.com/drive/
 checkpoint/
 ├── efficientvit_sam_xl1.pt
 ├── effvit_xl1_decoder_coco_ft.pt
-├── sam4mllm/
-├── sam4mllm_plus/
-│   ├── adapter_config.json
-│   ├── adapter_model.safetensors
-│   ├── README.md
-│   ├── special_tokens_map.json
-│   ├── tokenizer_config.json
-│   └── tokenizer.json
-└── xl1.pt
+└── sam4mllm_plus/
+    ├── adapter_config.json
+    ├── adapter_model.safetensors
+    ├── README.md
+    ├── special_tokens_map.json
+    ├── tokenizer_config.json
+    └── tokenizer.json
+
+## run the inference
+```
+CUDA_VISIBLE_DEVICES=0 python simple_infer.py
+```
