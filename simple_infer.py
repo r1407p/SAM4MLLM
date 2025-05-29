@@ -1,8 +1,5 @@
 import os
 import sys
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-sys.path.append('../')
-
 import re
 import glob
 import json
@@ -74,88 +71,10 @@ def load_model():
 
 model, tokenizer, image_processor, effvit_sam_predictor = load_model()
 model = model.eval()
-
-
-grid_rand_points = [
-    (93, 70), (51, 89), (91, 90), (32, 32), (88, 10),
-    (12, 28), (29, 52), (49, 49), (28, 12), (59, 60),
-    (9, 48), (52, 29), (31, 92), (68, 13), (73, 73),
-    (69, 53), (48, 9), (19, 18), (71, 93), (53, 69),
-    (89, 50), (11, 88), (33, 72), (39, 41), (72, 33),
-    (13, 68), (79, 82), (8, 8), (81, 22), (92, 30),
-]
-grid_rand_points = np.array(grid_rand_points) / 100
-grid_rand_points = grid_rand_points[:15]
-number_tokens = tokenizer(' '.join([str(i) for i in range(1000)]), add_special_tokens=False)['input_ids'][::2]
-print(grid_rand_points)
-test_img_path = './test_imgs/000000025515.jpg'
-image = Image.open(test_img_path)
-answer_counts = '1'
-s_phrase = 'side view bird'
 device = 'cuda:0'
-image_tensor = process_images([image], image_processor, model.config)
-image_tensor = [_image.to(dtype=torch.bfloat16) for _image in image_tensor]
-image_sizes = [image.size]
-prompt_question = tokenizer.apply_chat_template([
-    {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
-    {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
-], tokenize=False, add_generation_prompt=True)
-input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
-
-
-model = model.merge_and_unload()
-with torch.backends.cuda.sdp_kernel(enable_flash=False):
-    output = model.generate(
-        input_ids,
-        images=[x.float() for x in image_tensor],
-        image_sizes=image_sizes,
-        max_new_tokens=30,
-    )
-
-text_output = tokenizer.decode(output[0], skip_special_tokens=True)
-print(text_output)
-def point_to_str(point):
-    return f"({point[0]:03d},{point[1]:03d})"
-bbox = [281,240,863,999]
-bbox_txt = '[281,240,863,999]'
-x1, y1, x2, y2 = bbox
-
-rand_points = grid_rand_points * np.array([x2 - x1, y2 - y1]) + np.array([x1, y1])
-rand_points = rand_points.astype(int)
-
-points_txt = ' '.join([point_to_str(p) for p in rand_points])
-question_points = f'Check if the points listed below are located on the object with coordinates {bbox_txt}:\n{points_txt}'
-
-prompt_question = tokenizer.apply_chat_template([
-    {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
-    {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
-    {"role": "assistant", "content": text_output},
-    {"role": "user", "content": question_points},
-], tokenize=False, add_generation_prompt=True)
-input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
-
-output_2 = model.generate(
-    input_ids,
-    images=[x.float() for x in image_tensor],
-    image_sizes=image_sizes,
-    max_new_tokens=30,
-    output_logits=True,
-    return_dict_in_generate=True,
-)
-print(output_2[0])
-text_output_2 = tokenizer.decode(output_2[0][0], skip_special_tokens=True)
-print(text_output_2)
-
-yesno_probs = torch.stack(output_2['logits'], dim=1).softmax(dim=-1)
-yesno_probs = yesno_probs[0, :30, [2822, 9642]].float().cpu().numpy()
-
-
-print(yesno_probs)
-
-
-def sel_points(rand_points, all_probs_2, neg_thres=0.2, pos_thres=0.8):
+def sel_points(points, all_probs_2, neg_thres=0.2, pos_thres=0.8):
     sel_points, sel_labels = [], []
-    for (x, y), score in zip(rand_points, all_probs_2):
+    for (x, y), score in zip(points, all_probs_2):
         if score[0] > neg_thres:
             sel_points.append((x, y)), sel_labels.append(0)
         elif score[1] > pos_thres:
@@ -165,19 +84,13 @@ def sel_points(rand_points, all_probs_2, neg_thres=0.2, pos_thres=0.8):
     
     return sel_points, sel_labels
 
-points_sel, labels_sel = sel_points(rand_points, yesno_probs, neg_thres=0.9, pos_thres=0.75)
-
-
-draw_image = image.copy()
-draw = ImageDraw.Draw(draw_image)
-img_w, img_h = image.size
-draw.rectangle([x1/1000*img_w, y1/1000*img_h, x2/1000*img_w, y2/1000*img_h], outline='red', width=5)
-
-for (x, y), label in zip(points_sel, labels_sel):
-    draw.ellipse([x/1000*img_w-5, y/1000*img_h-5, x/1000*img_w+5, y/1000*img_h+5], fill='red' if label else 'blue')
-
-# store draw_image
-draw_image.save('./test_imgs/000000025515_draw.jpg')
+def process_points(points, bbox):
+    points = np.array(points) / 100
+    x1, y1, x2, y2 = bbox
+    points = np.array(points) * np.array([x2 - x1, y2 - y1]) + np.array([x1, y1])
+    points = points.astype(int)
+    points_txt = ' '.join([f"({p[0]:03d},{p[1]:03d})" for p in points])
+    return points, points_txt
 
 def sam_pred_mask(effvit_sam_predictor, points_sel, labels_sel, bbox, ori_img_w, ori_img_h):
     if len(points_sel) != 0:
@@ -195,13 +108,118 @@ def sam_pred_mask(effvit_sam_predictor, points_sel, labels_sel, bbox, ori_img_w,
     
     return pred_mask
 
-print(points_sel)
+def draw_rectangle_and_points(image, bbox, points_sel, labels_sel):
+    draw_image = image.copy()
+    draw = ImageDraw.Draw(draw_image)
+    img_w, img_h = image.size
+    x1, y1, x2, y2 = bbox
+    draw.rectangle([x1/1000*img_w, y1/1000*img_h, x2/1000*img_w, y2/1000*img_h], outline='red', width=5)
 
-effvit_sam_predictor.set_image(np.array(image))
-pred_mask = sam_pred_mask(
-    effvit_sam_predictor, points_sel, labels_sel, bbox, img_w, img_h
-)
-plt.imshow(image)
-plt.imshow(pred_mask, alpha=0.5)
-# save the mask
-plt.savefig('./test_imgs/000000025515_mask.jpg')
+    for (x, y), label in zip(points_sel, labels_sel):
+        draw.ellipse([x/1000*img_w-5, y/1000*img_h-5, x/1000*img_w+5, y/1000*img_h+5], fill='red' if label else 'blue')
+
+    return draw_image
+
+
+
+
+
+def main(image, s_phrase, points, bbox):
+    global model, tokenizer, image_processor, effvit_sam_predictor
+    bbox_txt = f'{bbox}'
+    x1, y1, x2, y2 = bbox
+    points, points_txt =  process_points(points, bbox)
+
+    answer_counts = '1'
+
+
+    image_tensor = process_images([image], image_processor, model.config)
+    image_tensor = [_image.to(dtype=torch.bfloat16) for _image in image_tensor]
+    image_sizes = [image.size]
+    prompt_question = tokenizer.apply_chat_template([
+        {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
+        {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
+    ], tokenize=False, add_generation_prompt=True)
+    input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
+
+
+    model = model.merge_and_unload()
+    with torch.backends.cuda.sdp_kernel(enable_flash=False):
+        output = model.generate(
+            input_ids,
+            images=[x.float() for x in image_tensor],
+            image_sizes=image_sizes,
+            max_new_tokens=30,
+        )
+
+    text_output = tokenizer.decode(output[0], skip_special_tokens=True)
+    print(text_output)
+    
+
+    question_points = f'Check if the points listed below are located on the object with coordinates {bbox_txt}:\n{points_txt}'
+
+    prompt_question = tokenizer.apply_chat_template([
+        {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
+        {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
+        {"role": "assistant", "content": text_output},
+        {"role": "user", "content": question_points},
+    ], tokenize=False, add_generation_prompt=True)
+    input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
+
+    output_2 = model.generate(
+        input_ids,
+        images=[x.float() for x in image_tensor],
+        image_sizes=image_sizes,
+        max_new_tokens=30,
+        output_logits=True,
+        return_dict_in_generate=True,
+    )
+    print(output_2[0])
+    text_output_2 = tokenizer.decode(output_2[0][0], skip_special_tokens=True)
+    print(text_output_2)
+
+    yesno_probs = torch.stack(output_2['logits'], dim=1).softmax(dim=-1)
+    yesno_probs = yesno_probs[0, :30, [2822, 9642]].float().cpu().numpy()
+
+
+    print(yesno_probs)
+
+    points_sel, labels_sel = sel_points(points, yesno_probs, neg_thres=0.9, pos_thres=0.75)
+    print(points_sel, labels_sel)
+
+    img_w, img_h = image.size
+    draw_image = draw_rectangle_and_points(image, bbox, points_sel, labels_sel)
+    draw_image.save('./test_imgs/000000025515_draw.jpg')
+
+    effvit_sam_predictor.set_image(np.array(image))
+    pred_mask = sam_pred_mask(
+        effvit_sam_predictor, points_sel, labels_sel, bbox, img_w, img_h
+    )
+    mask = Image.fromarray((pred_mask * 255).astype(np.uint8))  # Convert to black/white image
+    plt.imshow(image)
+    plt.imshow(pred_mask, alpha=0.5)
+    # save the mask
+    plt.savefig('./test_imgs/000000025515_mask.jpg')
+    iamge_with_mask = Image.fromarray((np.array(image) * 0.5 + np.array(pred_mask)[:, :, None] * [255, 0, 0] * 0.5).astype(np.uint8))
+    return {
+        "point_on_object": labels_sel,
+        "mask": mask,
+        "draw_image": draw_image,
+        "image_with_mask": iamge_with_mask,
+    }
+
+if __name__ == "__main__":
+    points = [
+        (93, 70), (51, 89), (91, 90), (32, 32), (88, 10),
+        (12, 28), (29, 52), (49, 49), (28, 12), (59, 60),
+        (9, 48), (52, 29), (31, 92), (68, 13), (73, 73),
+        # (69, 53), (48, 9), (19, 18), (71, 93), (53, 69),
+        # (89, 50), (11, 88), (33, 72), (39, 41), (72, 33),
+        # (13, 68), (79, 82), (8, 8), (81, 22), (92, 30),
+    ]
+    bbox = [281,240,863,999]
+    test_img_path = './test_imgs/000000025515.jpg'
+    image = Image.open(test_img_path)
+    s_phrase = 'side view bird'
+    main(image, s_phrase, points, bbox)
+    
