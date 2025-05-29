@@ -54,7 +54,7 @@ checkpoint/
     ├── special_tokens_map.json
     ├── tokenizer_config.json
     └── tokenizer.json
-
+```
 ## run the inference
 ```
 CUDA_VISIBLE_DEVICES=0 python simple_infer.py
