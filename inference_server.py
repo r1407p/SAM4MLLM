@@ -62,6 +62,8 @@ def load_model():
 
 model, tokenizer, image_processor, effvit_sam_predictor = load_model()
 model = model.eval()
+config = model.config
+model = model.merge_and_unload()
 device = 'cuda:0'
 def sel_points(points, all_probs_2, neg_thres=0.2, pos_thres=0.8):
     sel_points, sel_labels = [], []
@@ -118,7 +120,7 @@ def generate_mask():
     Generate a mask for the specified bounding box and points in the image.
     :return: JSON response containing the mask and drawn image
     """
-    global model, tokenizer, image_processor, effvit_sam_predictor
+    global model, tokenizer, image_processor, effvit_sam_predictor, config, device
     data = request.json
     image_data = data.get('image')
     s_phrase = data.get('s_phrase')
@@ -137,7 +139,7 @@ def generate_mask():
 
     answer_counts = '1'
 
-    image_tensor = process_images([image], image_processor, model.config)
+    image_tensor = process_images([image], image_processor, config)
     image_tensor = [_image.to(dtype=torch.bfloat16) for _image in image_tensor]
     image_sizes = [image.size]
     prompt_question = tokenizer.apply_chat_template([
@@ -146,7 +148,7 @@ def generate_mask():
     ], tokenize=False, add_generation_prompt=True)
     input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
 
-    model = model.merge_and_unload()
+
     with torch.backends.cuda.sdp_kernel(enable_flash=False):
         output = model.generate(
             input_ids,

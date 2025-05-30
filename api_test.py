@@ -2,16 +2,20 @@ import requests
 import json
 from PIL import Image
 import io
+import numpy as np
 
-url = 'http://localhost:5000/generate_mask'
+url = 'https://fa42-149-7-4-150.ngrok-free.app/generate_mask'
 image_path = './test_imgs/000000025515.jpg'
 s_phrase = 'side view bird'
 points = [
     [93, 70], [51, 89], [91, 90], [32, 32], [88, 10],
     [12, 28], [29, 52], [49, 49], [28, 12], [59, 60],
     [9, 48], [52, 29], [31, 92], [68, 13], [73, 73]
-]
-bbox = [281, 240, 863, 999]
+] # coordinates in the format [[x1, y1], [x2, y2], ...]
+# coordinates should be in the range of [0, 100] for both x and y, 
+# representing percentages of the relative position in the bounding box
+
+bbox = [281, 240, 863, 999] # bounding box coordinates in the format [x1, y1, x2, y2]
 
 with open(image_path, 'rb') as f:
     image_data = f.read()
@@ -34,6 +38,20 @@ if response.status_code == 200:
     image_with_mask.save('./output_image_with_mask.png')
 
     print('Mask image saved as ./output_image_with_mask.png')
+    
+    mask_bytes = bytes.fromhex(result["mask"])
+    mask = Image.open(io.BytesIO(mask_bytes))
+    mask.save('./output_mask.png')
+    mask_array = np.array(mask)
+    print('Mask image as numpy array:', mask_array)
+
+    draw_image = Image.open(io.BytesIO(bytes.fromhex(result["draw_image"])))
+    draw_image.save('./output_draw_image.png')
+
+    for point, label in zip(points, result["point_on_object"]):
+        print(f'Point: {point}, Label: {label}')
+
+
 else:
     print('Request failed with status code:', response.status_code)
     print('Response:', response.text)
