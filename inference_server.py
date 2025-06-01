@@ -113,6 +113,60 @@ def draw_rectangle_and_points(image, bbox, points_sel, labels_sel):
 
     return draw_image
 
+@app.route('/generate_bbox', methods=['POST'])
+def genrate_bbox():
+    """
+    Generate a bounding box for the specified phrase in the image.
+    :return: JSON response containing the bounding box and drawn image
+    """
+    global model, tokenizer, image_processor, effvit_sam_predictor, config, device
+    data = request.json
+    image_data = data.get('image')
+    s_phrase = data.get('s_phrase')
+
+    if not all([image_data, s_phrase]):
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    # Convert image data to PIL Image
+    image = Image.open(BytesIO(bytes(image_data)))
+
+    image_tensor = process_images([image], image_processor, config)
+    image_tensor = [_image.to(dtype=torch.bfloat16) for _image in image_tensor]
+    image_sizes = [image.size]
+    
+    prompt_question = tokenizer.apply_chat_template([
+        {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
+        {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes:\n"{s_phrase}".'},
+    ], tokenize=False, add_generation_prompt=True)
+    
+    input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
+
+    with torch.backends.cuda.sdp_kernel(enable_flash=False):
+        output = model.generate(
+            input_ids,
+            images=[x.float() for x in image_tensor],
+            image_sizes=image_sizes,
+            max_new_tokens=30,
+        )
+
+    text_output = tokenizer.decode(output[0], skip_special_tokens=True)
+    print(text_output)
+
+    bbox_txt = text_output.strip()
+    
+    # Parse bounding box from text output
+    try:
+        bbox = list(map(int, bbox_txt.split(',')))
+        if len(bbox) != 4:
+            raise ValueError("Bounding box must contain 4 integers.")
+    except Exception as e:
+        return jsonify({"error": f"Invalid bounding box format: {str(e)}"}), 400
+    return {
+        "bbox": bbox,
+        "bbox_txt": bbox_txt,
+    }
+
+
 
 @app.route('/generate_mask', methods=['POST'])
 def generate_mask():
@@ -142,30 +196,30 @@ def generate_mask():
     image_tensor = process_images([image], image_processor, config)
     image_tensor = [_image.to(dtype=torch.bfloat16) for _image in image_tensor]
     image_sizes = [image.size]
-    prompt_question = tokenizer.apply_chat_template([
-        {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
-        {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
-    ], tokenize=False, add_generation_prompt=True)
-    input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
+    # prompt_question = tokenizer.apply_chat_template([
+    #     {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
+    #     {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
+    # ], tokenize=False, add_generation_prompt=True)
+    # input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
 
 
-    with torch.backends.cuda.sdp_kernel(enable_flash=False):
-        output = model.generate(
-            input_ids,
-            images=[x.float() for x in image_tensor],
-            image_sizes=image_sizes,
-            max_new_tokens=30,
-        )
+    # with torch.backends.cuda.sdp_kernel(enable_flash=False):
+    #     output = model.generate(
+    #         input_ids,
+    #         images=[x.float() for x in image_tensor],
+    #         image_sizes=image_sizes,
+    #         max_new_tokens=30,
+    #     )
 
-    text_output = tokenizer.decode(output[0], skip_special_tokens=True)
-    print(text_output)
+    # text_output = tokenizer.decode(output[0], skip_special_tokens=True)
+    # print(text_output)
 
     question_points = f'Check if the points listed below are located on the object with coordinates {bbox_txt}:\n{points_txt}'
 
     prompt_question = tokenizer.apply_chat_template([
         {"role": "system", "content": "You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."},
         {"role": "user", "content": f'<image>\nPlease provide the bounding box coordinate of the region this sentence describes ({answer_counts}):\n"{s_phrase}".'},
-        {"role": "assistant", "content": text_output},
+        {"role": "assistant", "content": bbox_txt},
         {"role": "user", "content": question_points},
     ], tokenize=False, add_generation_prompt=True)
     input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)

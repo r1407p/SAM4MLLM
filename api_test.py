@@ -6,7 +6,7 @@ import numpy as np
 
 url = 'https://fa42-149-7-4-150.ngrok-free.app/generate_mask'
 image_path = './test_imgs/000000025515.jpg'
-s_phrase = 'side view bird'
+s_phrase = 'hand'
 points = [
     [93, 70], [51, 89], [91, 90], [32, 32], [88, 10],
     [12, 28], [29, 52], [49, 49], [28, 12], [59, 60],
@@ -15,7 +15,7 @@ points = [
 # coordinates should be in the range of [0, 100] for both x and y, 
 # representing percentages of the relative position in the bounding box
 
-bbox = [281, 240, 863, 999] # bounding box coordinates in the format [x1, y1, x2, y2]
+bbox = [0,467,540,999] # bounding box coordinates in the format [x1, y1, x2, y2]
 
 with open(image_path, 'rb') as f:
     image_data = f.read()
