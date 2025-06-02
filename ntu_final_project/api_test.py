@@ -6,7 +6,7 @@ import numpy as np
 
 url = 'https://fa42-149-7-4-150.ngrok-free.app/generate_mask'
 image_path = './test_imgs/000000025515.jpg'
-s_phrase = 'hand'
+s_phrase = 'side view bird'
 points = [
     [93, 70], [51, 89], [91, 90], [32, 32], [88, 10],
     [12, 28], [29, 52], [49, 49], [28, 12], [59, 60],

@@ -66,12 +66,19 @@ config = model.config
 model = model.merge_and_unload()
 device = 'cuda:0'
 def sel_points(points, all_probs_2, neg_thres=0.2, pos_thres=0.8):
+    print("Selecting points based on probabilities...")
+    
     sel_points, sel_labels = [], []
+    print(len(points), len(all_probs_2))
     for (x, y), score in zip(points, all_probs_2):
-        if score[0] > neg_thres:
-            sel_points.append((x, y)), sel_labels.append(0)
-        elif score[1] > pos_thres:
+        if score[0] > 0.5:
             sel_points.append((x, y)), sel_labels.append(1)
+        else:
+            sel_points.append((x, y)), sel_labels.append(0)
+        # if score[0] > neg_thres:
+        #     sel_points.append((x, y)), sel_labels.append(0)
+        # elif score[1] > pos_thres:
+        #     sel_points.append((x, y)), sel_labels.append(1)
     
     sel_points, sel_labels = np.array(sel_points), np.array(sel_labels)
     
@@ -156,7 +163,7 @@ def genrate_bbox():
     
     # Parse bounding box from text output
     try:
-        bbox = list(map(int, bbox_txt.split(',')))
+        bbox = list(map(int, bbox_txt.strip('[]').split(',')))
         if len(bbox) != 4:
             raise ValueError("Bounding box must contain 4 integers.")
     except Exception as e:
@@ -190,7 +197,8 @@ def generate_mask():
     bbox_txt = f'{bbox}'
     x1, y1, x2, y2 = bbox
     points, points_txt = process_points(points, bbox)
-
+    print(points)
+    print(len(points))
     answer_counts = '1'
 
     image_tensor = process_images([image], image_processor, config)
@@ -237,7 +245,7 @@ def generate_mask():
     print(text_output_2)
 
     yesno_probs = torch.stack(output_2['logits'], dim=1).softmax(dim=-1)
-    yesno_probs = yesno_probs[0, :30, [2822, 9642]].float().cpu().numpy()
+    yesno_probs = yesno_probs[0, :-1, [2822, 9642]].float().cpu().numpy()
 
     print(yesno_probs)
 
