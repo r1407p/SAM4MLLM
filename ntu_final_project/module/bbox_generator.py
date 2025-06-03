@@ -159,7 +159,16 @@ class BboxGenerator:
         if len(bbox_list) > 1:
             print(f"Warning: Multiple bounding boxes found: {bbox_list}")
         
-        return bbox_list[0]  # Return the first bounding box found
+        bbox = bbox_list[0]
+        x1, y1, x2, y2 = bbox  # Unpack the bounding box coordinates
+        w, h = image.size
+        # Calculate relative bbox (scale to 1000)
+        x_min = x1 / w * 1000
+        y_min = y1 / h * 1000
+        x_max = x2 / w * 1000
+        y_max = y2 / h * 1000
+        bbox = [x_min, y_min, x_max, y_max]
+        return bbox  # Return the first bounding box found
 
     @staticmethod
     def extract_bbox_2d(string: str) -> List[int]:
