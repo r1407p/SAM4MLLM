@@ -8,3 +8,4 @@ venv2/
 view?usp=sharing
 
 __pycache__/
+*.png
