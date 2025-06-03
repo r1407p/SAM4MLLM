@@ -23,7 +23,7 @@ def example_inference(image, query, bbox_generator: BboxGenerator, test_type='ba
         bbox = bbox_generator.generate_bounding_box_qwen(image, query)
     elif test_type == 'yolo':
         bbox = bbox_generator.generate_bounding_box_yolo(image_data, query)
-    if bbox is None:
+    if not (isinstance(bbox, list) or isinstance(bbox, tuple)) or len(bbox) != 4:
         return None
     if test_type in ['base', 'yolo']:
         x1, y1, x2, y2 = bbox
