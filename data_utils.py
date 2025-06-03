@@ -36,8 +36,7 @@ class RefCOCODataset(Dataset):
             img: Image.Image = data['image']
             seg = data['segmentation']
             bbox = data['bbox']
-            bbox_point = [(bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1]),
-                        (bbox[0] + bbox[2], bbox[1] + bbox[3]), (bbox[0], bbox[1] + bbox[3])]
+            bbox_point = [bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]
             
             mask = seg_to_mask([seg], img.size[1], img.size[0])
             mask = mask.astype(np.uint8) * 255
