@@ -88,11 +88,11 @@ class BboxGenerator:
         return bbox
         
 
-    def generate_bounding_box_qwen(self, image_path, prompt: str) -> List[int]:
+    def generate_bounding_box_qwen(self, image, prompt: str) -> List[int]:
         """
         Generate bounding box using Qwen model based on the image and prompt.
         
-        :param image_data: bytes of the image
+        :param image_data: PIL Image or bytes of the image
         :param prompt: the prompt to describe the bounding box
         :return: List[int] representing the bounding box coordinates in [x1, y1, x2, y2]
         """
@@ -100,30 +100,30 @@ class BboxGenerator:
         # image = Image.open(io.BytesIO(image_data))
 
         # Create message input for the Qwen model
-        # messages = [
-        #     {
-        #         "role": "user",
-        #         "content": [
-        #             {
-        #                 "type": "image",
-        #                 "image": image,
-        #             },
-        #             {"type": "text", "text": f'Where is the "{prompt}"? Answer in the format of "bbox_2d": [x1, y1, x2, y2]'},
-        #         ],
-        #     }
-        # ]
         messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "image": image_path,
-                        },
-                        {"type": "text", "text": f'Where is the "{prompt}"? Answer in the format of "bbox_2d": [x1, y1, x2, y2]'},
-                    ],
-                }
-            ]
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "image": image,
+                    },
+                    {"type": "text", "text": f'Where is the "{prompt}"? Answer in the format of "bbox_2d": [x1, y1, x2, y2]'},
+                ],
+            }
+        ]
+        # messages = [
+        #         {
+        #             "role": "user",
+        #             "content": [
+        #                 {
+        #                     "type": "image",
+        #                     "image": image_path,
+        #                 },
+        #                 {"type": "text", "text": f'Where is the "{prompt}"? Answer in the format of "bbox_2d": [x1, y1, x2, y2]'},
+        #             ],
+        #         }
+        #     ]
         # Process the messages to generate the text and image inputs
         text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(messages)

@@ -52,26 +52,20 @@ def inference(image_path, prompt):
         print(f'Point: {point}, Label: {label}')
     # breakpoint()
     return mask
-
-def inference_fn(image, prompt):
-    if isinstance(image, np.ndarray):
-        image_data = image.tolist()
-    elif isinstance(image, Image.Image):
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='PNG')
-        image_data = list(img_byte_arr.getvalue())
-    elif isinstance(image, str):
-        image_data = open(image_path, 'rb').read()
-    bbox_generator = BboxGenerator()
-    point_generator = PointGenerator()
-    mask_generator = MaskGenerator()
-    # bbox = bbox_generator.generate_bounding_box_mllm(image_data, prompt)
+bbox_generator = BboxGenerator()
+point_generator = PointGenerator()
+mask_generator = MaskGenerator()
+def inference_fn(image: Image, prompt, name=""):
+    image_data = io.BytesIO()
+    image.save(image_data, format='JPEG')
+    image_data = image_data.getvalue()
+    bbox = bbox_generator.generate_bounding_box_sam_mllm(image_data, prompt)
     # bbox = bbox_generator.generate_bounding_box_yolo(image_data, prompt)
-    bbox = bbox_generator.generate_bounding_box_qwen(image_path, prompt)
+    # bbox = bbox_generator.generate_bounding_box_qwen(image, prompt)
     print(f"Generated bounding box: {bbox}")
-    points = point_generator.generate_edge_points(image_data, bbox)
+    # points = point_generator.generate_edge_points(image_data, bbox)
     # points = point_generator.generate_random_points(image_data, bbox, num_points=30)
-    # points = point_generator.generate_point_grid(image_data, bbox)
+    points = point_generator.generate_point_grid(image_data, bbox)
     
     print(f"Generated points: {points}")
     mask, result = mask_generator.generate_mask(image_data, prompt, points, bbox)
@@ -81,7 +75,7 @@ def inference_fn(image, prompt):
     
     image_with_mask_bytes = bytes.fromhex(result["image_with_mask"])
     image_with_mask = Image.open(io.BytesIO(image_with_mask_bytes))
-    image_with_mask.save('ntu_final_project/output_image_with_mask.png')
+    image_with_mask.save(f'ntu_final_project/output/image_with_mask_{name}.png')
     
     for point, label in zip(points, result["point_on_object"]):
         print(f'Point: {point}, Label: {label}')
@@ -91,6 +85,12 @@ def inference_fn(image, prompt):
 if __name__ == "__main__":
     image_path = './test_imgs/000000025515.jpg'
     s_phrase = 'side view bird'
-    inference(image_path, s_phrase)
+    mask = inference_fn(image_path, s_phrase)
+    for x in range(mask.shape[0]):
+        for y in range(mask.shape[1]):
+            if mask[x, y] > 0:
+                print(f"Mask at ({x}, {y}): {mask[x, y]}")
+                
+    breakpoint()
     
 #  CUDA_VISIBLE_DEVICES=7 python3 -m ntu_final_project.ntu_agent

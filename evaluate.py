@@ -37,7 +37,8 @@ def evaluate(inference_fn, dataset: RefCOCODataset, attempt=3):
     total_intersection = 0.0
     total_iou = 0.0
     count = 0
-    result = load_existing_results()
+    # result = load_existing_results()
+    result = {}
 
     for idx in tqdm(range(len(dataset))):
         data_id, img, query, mask_img, bbox = dataset[idx]
@@ -46,7 +47,7 @@ def evaluate(inference_fn, dataset: RefCOCODataset, attempt=3):
         if pred_mask is None:
             for _ in range(attempt):
                 try:
-                    pred_mask = inference_fn(img, query)
+                    pred_mask = inference_fn(img, query, idx)
                     if pred_mask is not None:
                         result[data_id] = pred_mask
                         break
@@ -62,6 +63,7 @@ def evaluate(inference_fn, dataset: RefCOCODataset, attempt=3):
         mask_img.save('output_mask_gt.png')
 
         iou = IoU(mask, pred_mask)
+        print(f"Data ID: {data_id}, IoU: {iou:.4f}")
         total_union += get_union(mask, pred_mask)
         total_intersection += get_intersection(mask, pred_mask)
         total_iou += iou
