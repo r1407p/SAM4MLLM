@@ -3,9 +3,9 @@ from PIL import Image, ImageDraw
 import io
 from typing import List, Tuple
 from ntu_final_project.config import URL_BASE
-from ntu_final_project.bbox_generator import BboxGenerator
-from ntu_final_project.point_generator import PointGenerator
-from ntu_final_project.mask_generator import MaskGenerator
+from ntu_final_project.module.bbox_generator import BboxGenerator
+from ntu_final_project.module.point_generator import PointGenerator
+from ntu_final_project.module.mask_generator import MaskGenerator
 
 def draw_bounding_box_points(image: Image, bbox:List[int], points: List[Tuple[float, float]], point_labels: List[bool], store=False) -> None:
     draw = ImageDraw.Draw(image)
@@ -33,6 +33,9 @@ def inferene(image_path, prompt):
     bbox = bbox_generator.generate_bounding_box_yolo(image_data, prompt)
     print(f"Generated bounding box: {bbox}")
     points = point_generator.generate_edge_points(image_data, bbox)
+    # points = point_generator.generate_random_points(image_data, bbox, num_points=30)
+    # points = point_generator.generate_point_grid(image_data, bbox)
+    
     print(f"Generated points: {points}")
     mask, result = mask_generator.generate_mask(image_data, prompt, points, bbox)
     print(mask)

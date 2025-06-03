@@ -72,9 +72,9 @@ def sel_points(points, all_probs_2, neg_thres=0.2, pos_thres=0.8):
     print(len(points), len(all_probs_2))
     for (x, y), score in zip(points, all_probs_2):
         if score[0] > 0.5:
-            sel_points.append((x, y)), sel_labels.append(1)
-        else:
             sel_points.append((x, y)), sel_labels.append(0)
+        else:
+            sel_points.append((x, y)), sel_labels.append(1)
         # if score[0] > neg_thres:
         #     sel_points.append((x, y)), sel_labels.append(0)
         # elif score[1] > pos_thres:
@@ -153,7 +153,7 @@ def genrate_bbox():
             input_ids,
             images=[x.float() for x in image_tensor],
             image_sizes=image_sizes,
-            max_new_tokens=30,
+            max_new_tokens=100,
         )
 
     text_output = tokenizer.decode(output[0], skip_special_tokens=True)
@@ -236,7 +236,7 @@ def generate_mask():
         input_ids,
         images=[x.float() for x in image_tensor],
         image_sizes=image_sizes,
-        max_new_tokens=30,
+        max_new_tokens=100,
         output_logits=True,
         return_dict_in_generate=True,
     )
@@ -245,7 +245,7 @@ def generate_mask():
     print(text_output_2)
 
     yesno_probs = torch.stack(output_2['logits'], dim=1).softmax(dim=-1)
-    yesno_probs = yesno_probs[0, :-1, [2822, 9642]].float().cpu().numpy()
+    yesno_probs = yesno_probs[0, :, [2822, 9642]].float().cpu().numpy()
 
     print(yesno_probs)
 
@@ -286,3 +286,6 @@ def generate_mask():
 # Start the Flask app
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+# To run the server, use the command:
+# python ntu_final_project/api_server/inference_server.py

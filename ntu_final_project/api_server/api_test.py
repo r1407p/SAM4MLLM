@@ -55,3 +55,5 @@ if response.status_code == 200:
 else:
     print('Request failed with status code:', response.status_code)
     print('Response:', response.text)
+
+# python3 ntu_final_project/api_server/api_test.py

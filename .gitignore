@@ -1,0 +1,10 @@
+LLaVA-NeXT/
+checkpoint/
+efficientvit/
+test_imgs/
+venv-test/
+venv/
+venv2/
+view?usp=sharing
+
+__pycache__/

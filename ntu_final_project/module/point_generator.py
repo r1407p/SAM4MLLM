@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 from typing import List, Tuple
+import random
+
 
 class PointGenerator:
     def __init__(self):
@@ -21,9 +23,22 @@ class PointGenerator:
         points = [
             [93, 70], [51, 89], [91, 90], [32, 32], [88, 10],
             [12, 28], [29, 52], [49, 49], [28, 12], [59, 60],
-            [9, 48], [52, 29], [31, 92], [68, 13], [73, 73]
+            [9, 48], [52, 29], [31, 92], [68, 13], [73, 73],
+            (69, 53), (48, 9), (19, 18), (71, 93), (53, 69),
+            (89, 50), (11, 88), (33, 72), (39, 41), (72, 33),
+            (13, 68), (79, 82), (8, 8), (81, 22), (92, 30),
         ]
+        
         return points
+    @staticmethod
+    def generate_random_points(image_data, bbox: List[float], num_points: int = 50) -> List[List[float]]:
+        points = []
+        for _ in range(num_points):
+            x = random.randint(0, 100)
+            y = random.randint(0, 100)
+            points.append([x, y])
+        return points
+            
 
     def generate_edge_points(self, image_data, bbox: list[int],
                         num_pairs: int = 10, offset: int = 15) -> list[list[int]]:
