@@ -84,7 +84,17 @@ class PointGenerator:
             outside_points.append([x_out + x1, y_out + y1])
 
         all_points = inside_points + outside_points
-        percent_pts = [[int(x / W * 100), int(y / H * 100)] for x, y in all_points]
+        # 將點轉為 bbox 內的相對百分比 [0~100]
+        bbox_w = x2 - x1
+        bbox_h = y2 - y1
+        percent_pts = [
+            [
+                int((x - x1) / bbox_w * 100),
+                int((y - y1) / bbox_h * 100)
+            ]
+            for x, y in all_points
+        ]
+
         vis_save_path = 'ntu_final_project/output_edge_points_vis.png'
         if vis_save_path:
             vis_img = image.copy()
