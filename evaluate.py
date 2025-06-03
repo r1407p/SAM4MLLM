@@ -6,7 +6,16 @@ from argparse import ArgumentParser
 
 from data_utils import Dataset, RefCOCODataset
 from sam4mllm_infer import inference as sam4mllm_inference
+from ntu_final_project.ntu_agent import inference_fn as ntu_inference
 
+RESULT_PATH = 'pred_mask_our.pkl'
+
+def load_existing_results():
+    try:
+        return pd.read_pickle(RESULT_PATH)
+    except FileNotFoundError:
+        return {}
+    
 def example_inference(img: Image.Image, query: str) -> np.ndarray:
     return np.zeros(img.size[:2], dtype=np.uint8)
 
@@ -28,24 +37,25 @@ def evaluate(inference_fn, dataset: RefCOCODataset, attempt=3):
     total_intersection = 0.0
     total_iou = 0.0
     count = 0
-    result = {}
+    result = load_existing_results()
 
     for idx in tqdm(range(len(dataset))):
         data_id, img, query, mask_img, bbox = dataset[idx]
         mask = np.array(mask_img) > 0 
-        
-        for _ in range(attempt):
-            try:
-                pred_mask = inference_fn(img, query)
-                result[data_id] = pred_mask
-                if pred_mask is not None:
-                    break
-            except Exception as e:
+        pred_mask = result.get(data_id, None)
+        if pred_mask is None:
+            for _ in range(attempt):
+                try:
+                    pred_mask = inference_fn(img, query)
+                    if pred_mask is not None:
+                        result[data_id] = pred_mask
+                        break
+                except Exception as e:
+                    continue
+            else:
+                print(f"Failed to get prediction for index {idx}")
+                result[data_id] = None
                 continue
-        else:
-            print(f"Failed to get prediction for index {idx}")
-            result[data_id] = None
-            continue
         
         pred_mask = pred_mask > 0  
         
@@ -57,7 +67,7 @@ def evaluate(inference_fn, dataset: RefCOCODataset, attempt=3):
         total_iou += iou
         count += 1
 
-    pd.to_pickle(result, 'pred_mask.pkl')
+    pd.to_pickle(result, RESULT_PATH)
     average_iou = total_iou / count if count > 0 else 0.0
     overall_iou = total_intersection / total_union if total_union > 0 else 0.0
     return {'average_iou': average_iou, 'overall_iou': overall_iou}
@@ -73,6 +83,7 @@ if __name__ == "__main__":
     random = args.random
     
     dataset = RefCOCODataset(split='testA', complete=complete, num_samples=num_samples, random=random)
-    inference_fn = lambda img, query: sam4mllm_inference(img, query, eval=True)
+    # inference_fn = lambda img, query: sam4mllm_inference(img, query, eval=True)
+    inference_fn = ntu_inference
     scores = evaluate(inference_fn, dataset)
     print(f"Average IoU: {scores['average_iou']:.4f}, Overall IoU: {scores['overall_iou']:.4f}")
