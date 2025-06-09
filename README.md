@@ -9,6 +9,11 @@ source venv/bin/activate
 require python 3.10 cannot be 3.8 or 3.12
 
 ## install dependency
+
+```
+pip install -r requirements.txt
+```
+
 llava module
 ```
 git clone git@github.com:LLaVA-VL/LLaVA-NeXT.git
