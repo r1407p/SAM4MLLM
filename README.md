@@ -1,84 +1,108 @@
-# SAM4MLLM
-This is the implementation of our ECCV'24 "SAM4MLLM: Enhance Multi-Modal Large Language Model for Referring Expression Segmentation"
+# Sam4MLLM-Plus
+This project need 40GB GPU memory to run.
 
-
-<img src="./image/SAM4MLLM_PQPP.png" width="60%">
-
-
-## Dataset Preparation
-Download each dataset from website:
-- [ADE20K](https://groups.csail.mit.edu/vision/datasets/ADE20K/)
-- [PACO-LVIS](https://github.com/facebookresearch/paco/tree/main)
-- [Part-ImageNet](https://github.com/TACJu/PartImageNet)
-- [RefCOCO](https://github.com/lichengunc/refer)
-- [GRES](https://github.com/henghuiding/ReLA)
-
-You are responsible for checking if the dataset license is fit for the intended purpose.
-
-Put all of them under data directory so you should get:
-
+## Create venv
 ```
-    SAM4MLLM/
-    ├──dataset/
-    |  ├──ADE20K/
-    |  ├──PACO-LVIS/
-    |  ├──Part-ImageNet/
-    |  ├──RefCOCO/
-    |  ├──GRES/
+python3.10 -m venv venv
+source venv/bin/activate
+```
+require python 3.10 cannot be 3.8 or 3.12
+
+## install dependency
+llava module
+```
+git clone git@github.com:LLaVA-VL/LLaVA-NeXT.git
+cd LLaVA-NeXT
+pip install --upgrade pip
+pip install -e ".[train]"
+cd ..
 ```
 
-
-## Installation
-- pytorch==2.1.2
-- transformers==4.42.4
-- peft==0.11.1
-- lightning==2.3.3
-- FlashAttention2(optional)
-- LLaVA-NeXT: Follow instruction in https://github.com/LLaVA-VL/LLaVA-NeXT
-- EfficientVIT-SAM: Follow instruction in https://github.com/mit-han-lab/efficientvit
-
-
-## Checkpoint
-Download each checkpoint:
-- [llava-next (llama 3)](https://huggingface.co/lmms-lab/llama3-llava-next-8b)
-- [Efficient-VIT-SAM](https://huggingface.co/han-cai/efficientvit-sam/resolve/main/xl1.pt)
-- [SAM4MLLM](https://drive.google.com/drive/folders/1KH7hnDY8W7lXNHGtCbloA5jlWMZ0vgND?usp=drive_link)
-- [SAM4MLLM+](https://drive.google.com/drive/folders/1ytEfGRa6bxThTXQn5MLVKKy4jsxxBo6M)
-- [SAM-Decoder (finetuned on Coco dataset)](https://drive.google.com/drive/folders/14burV34SxcQnxqkoiQ9Ax-OB26XmSf8S?usp=drive_link)
-
-
-Put all of them under checkpoint directory so you should get:
+efficientvit module
 ```
-    SAM4MLLM/
-    ├──checkpoint/
-    |  ├──llama3-llava-next-8b/
-    |  ├──sam4mllm/
-    |  ├──sam4mllm_plus/
-    |  ├──xl1.pt/
-    |  ├──effvit_xl1_decoder_coco_ft.pt
-```
-## Data pre-process
-
-- Rearrange data
-
-In data, Run each jupyter notebook to generate dataset for training.
-
-- Convert the data into dialouge format:
-
-```
-python to_chat_format.ipynb
+git clone git@github.com:mit-han-lab/efficientvit.git
+cd efficientvit
+pip install -e .
+cd ..
 ```
 
-## Traning
+
+## Download checkpoint
+
 ```
-python sam4mllm_train.py
+mkdir checkpoint
+cd checkpoint
+wget https://huggingface.co/mit-han-lab/efficientvit-sam/resolve/main/efficientvit_sam_xl1.pt
+mkdir sam4mllm_plus
+
+```
+1. **EfficientViT model (efficientvit_xl1_decoder_coco_ft.pt)**  
+   [Download from Google Drive](https://drive.google.com/drive/folders/14burV34SxcQnxqkoiQ9Ax-OB26XmSf8S)
+
+2. **SAM4MLLM Plus Checkpoints and Metadata**  
+   [Download from Google Drive](https://drive.google.com/drive/folders/1ytEfGRa6bxThTXQn5MLVKKy4jsxxBo6M)
+
+3. **SAM VIT H model (sam_vit_h_4b8939.pth)**  
+   [Download from Meta Segment Anything](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth)
+
+
+### structure
+```
+checkpoint/
+├── efficientvit_sam_xl1.pt
+├── effvit_xl1_decoder_coco_ft.pt
+└── sam4mllm_plus/
+    ├── adapter_config.json
+    ├── adapter_model.safetensors
+    ├── README.md
+    ├── special_tokens_map.json
+    ├── tokenizer_config.json
+    └── tokenizer.json
+semantic_1/
+    └── sam_vit_h_4b8939.pth
 ```
 
-## Inference 
-Run simple_infer.ipynb
+## Dataset preparation and inference preparation
+### Setup
+- Dataset: [RefCOCO](https://huggingface.co/datasets/lmms-lab/RefCOCO)  (using testA split)
+- Amount: 
+    - Partial: 1975 samples (only the first caption per ground truth segmentation is used.)
+    - Complete: 5657 samples (all captions for each ground truth segmentation are used.)
+- Metrics: average IoU, overall IoU, ...
+
+###  How to Run
+In `evaluate.py`, replace `inference_fn` with our own function. The function should take the following inputs and return a predicted binary mask:
+```
+def inference_fn(image: PIL.Image.Image, query: str) -> np.ndarray:
+```
+I have implemented one in sam4mllm_infer.py for the baseline method (API version). 
+
+Run `evaluate.py`
+```
+python -m evaluate
+```
+```
+usage: evaluate.py [-h] [--num NUM] [--complete] [--random]
+
+options:
+  -h, --help         show this help message and exit
+  --num NUM, -n NUM  Number of samples to evaluate, none for all
+  --complete         Use complete dataset
+  --random           Randomly sample from the dataset if num is specified
+```
+Then, you will get two scores, **average and overall IoU**, and all predicted masks will be saved to `pred_masks.pkl`.
+
+`data_utils.py` contains the code for loading and preprocessing data.
 
 
-## Licenses
-Copyright © 2024, NVIDIA Corporation. All rights reserved.
+## run the inference
+step 1: startup the server for sam server:
+```
+CUDA_VISIBLE_DEVICES=0 python3 -m ntu_final_project.api_server.inference_server 
+```
+step 2: modify the config file in `ntu_final_project/config.py` if your server is not running on localhost or port 5000.
 
-This work is made available under the NVIDIA Source Code License-NC. Click [here](https://github.com/AI-Application-and-Integration-Lab/SAM4MLLM/blob/main/LICENCE) to view a copy of this license.
+step 3: run the inference
+```
+CUDA_VISIBLE_DEVICES=1 python3 -m evaluate 
+```

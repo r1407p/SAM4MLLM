@@ -25,7 +25,7 @@ I have implemented one in sam4mllm_infer.py for the baseline method (API version
 
 Run `evaluate.py`
 ```
-python evaluate.py 
+python -m evaluate
 ```
 ```
 usage: evaluate.py [-h] [--num NUM] [--complete] [--random]
