@@ -5,7 +5,7 @@
 # bbox = gen_bbox("path/to/000000025515.jpg", "side view bird")
 # x1, y1, x2, y2 = bbox
 
-
+import re
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
 import torch
@@ -83,3 +83,13 @@ def extract_bbox_2d(string: str):
     bbox_list = [tuple(map(int, match)) for match in matches]
 
     return bbox_list
+
+
+if __name__ == "__main__":
+    # Example usage
+    image_path = "test_imgs/000000025515.jpg"
+    query = "side view bird"
+    bbox = gen_bbox(image_path, query)
+    print(f"Generated bounding box: {bbox}")
+    # Output should be in the format (x1, y1, x2, y2)
+# python3 -m bbox_detector

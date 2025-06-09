@@ -89,3 +89,5 @@ if __name__ == "__main__":
     inference_fn = ntu_inference
     scores = evaluate(inference_fn, dataset)
     print(f"Average IoU: {scores['average_iou']:.4f}, Overall IoU: {scores['overall_iou']:.4f}")
+
+# CUDA_VISIBLE_DEVICES=5 python3 -m evaluate --num 100

@@ -86,12 +86,12 @@ def extract_edge_points(image: np.ndarray, bbox: list[int],
 
 
 # Example usage:
+if __name__ == "__main__":
+#    from semantic_utils import extract_edge_points
+    import cv2
 
-# from semantic_utils import extract_edge_points
-# import cv2
+    img = cv2.imread("./test_imgs/000000025515.jpg")[:, :, ::-1]  # BGR to RGB
+    bbox = [290.225887298584, 287.2420850526814, 860.8460426330566, 996.2462104685868]
 
-# img = cv2.imread("./test_imgs/000000025515.jpg")[:, :, ::-1]  # BGR to RGB
-# bbox = [290.225887298584, 287.2420850526814, 860.8460426330566, 996.2462104685868]
-
-# points = extract_edge_points(img, bbox, vis_save_path="./semantic_1/vis_result.png")
-# print(points)  # [[69, 86], [57, 86], [68, 54], [50, 74], [66, 98], [47, 28], [41, 73], [82, 46], [66, 89], [59, 89], [65, 90], [61, 82], [64, 57], [46, 74], [69, 94], [48, 32], [44, 68], [79, 51], [68, 83], [63, 85]]
+    points = extract_edge_points(img, bbox, vis_save_path="./semantic_1/vis_result.png")
+    print(points)  # [[69, 86], [57, 86], [68, 54], [50, 74], [66, 98], [47, 28], [41, 73], [82, 46], [66, 89], [59, 89], [65, 90], [61, 82], [64, 57], [46, 74], [69, 94], [48, 32], [44, 68], [79, 51], [68, 83], [63, 85]]
